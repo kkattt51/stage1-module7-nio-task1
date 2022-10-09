@@ -5,53 +5,37 @@ import java.io.IOException;
 import java.io.RandomAccessFile;
 import java.nio.ByteBuffer;
 import java.nio.channels.FileChannel;
-import java.nio.file.Path;
-import java.nio.file.Paths;
-import java.util.HashMap;
-import java.util.Map;
 
 
 public class FileReader {
 
     public Profile getDataFromFile(File file) {
-        Map<String, String> personalData = new HashMap<>();
-        Profile profile = new Profile();
         StringBuilder content = new StringBuilder();
-        Path path = Paths.get(file.getAbsolutePath());
+        String[] profileData = new String[4];
+        try (RandomAccessFile aFile = new RandomAccessFile(file, "r");
+             FileChannel inChannel = aFile.getChannel()) {
 
-        try (RandomAccessFile randomAccessFile = new RandomAccessFile(file, "r");
-             FileChannel inChannel = randomAccessFile.getChannel()) {
-            ByteBuffer buffer = ByteBuffer.allocate(1024);
+            long fileSize = inChannel.size();
 
-            while (inChannel.read(buffer) > 0) {
-                buffer.flip();
-                for (int i = 0; i < buffer.limit(); i++) {
-                    content.append((char) buffer.get());
-                }
+            ByteBuffer buffer = ByteBuffer.allocate((int) fileSize);
+
+            inChannel.read(buffer);
+            buffer.flip();
+
+            for (int i = 0; i < buffer.limit(); i++) {
+                content.append((char) buffer.get());
             }
 
-        } catch (IOException e) {
-            e.printStackTrace();
-        } catch (NumberFormatException n) {
-            n.printStackTrace();
-        }
+            String[] splitContent = content.toString().split("\n");
 
-        String[] d = content.toString().split(System.lineSeparator());
+            for (int i = 0; i < splitContent.length; i++) {
+                int indexToSplit = splitContent[i].indexOf(":");
+                profileData[i] = splitContent[i].substring(indexToSplit + 2).trim();
+            }
 
-        for (int x = 0; x < d.length; x++) {
-            String row = d[x];
-            String[] keyValue = row.split(":");
-            personalData.put(keyValue[0].trim(), keyValue[1].trim());
+        } catch (IOException ioException) {
+            ioException.printStackTrace();
         }
-
-        try {
-            profile.setName(personalData.get("Name"));
-            profile.setAge(Integer.parseInt(personalData.get("Age")));
-            profile.setEmail(personalData.get("Email"));
-            profile.setPhone(Long.parseLong(personalData.get("Phone")));
-        } catch (NumberFormatException n) {
-            n.printStackTrace();
-        }
-        return profile;
+        return new Profile(profileData[0], Integer.parseInt(profileData[1]), profileData[2], Long.parseLong(profileData[3]));
     }
 }
